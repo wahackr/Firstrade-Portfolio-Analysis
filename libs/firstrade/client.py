@@ -12,16 +12,23 @@ def get_credentials():
     username = os.getenv("FT_USERNAME")
     password = os.getenv("FT_PASSWORD")
     email = os.getenv("FT_EMAIL")
+    mfa_secret = os.getenv("FT_MFA_SECRET")  # Optional MFA secret for TOTP
     
-    if not all([username, password, email]):
-        print("Error: Missing credentials. Please set FT_USERNAME, FT_PASSWORD, and FT_EMAIL in .env file.")
+    if not all([username, password]):
+        print("Error: Missing credentials. Please set FT_USERNAME and FT_PASSWORD in .env file.")
         sys.exit(1)
-    return username, password, email
+    return username, password, email, mfa_secret
 
-def login(username, password, email):
+def login(username, password, email, mfa_secret=None):
     """Authenticate with Firstrade."""
     print("Logging in...")
-    ft_ss = account.FTSession(username=username, password=password, email=email, profile_path=".")
+    ft_ss = account.FTSession(
+        username=username, 
+        password=password, 
+        email=email, 
+        #mfa_secret=mfa_secret,        
+        profile_path="."
+    )
     need_code = ft_ss.login()
     if need_code:
         code = input("Please enter the 2FA code sent to your email/phone: ")
@@ -50,19 +57,22 @@ def fetch_portfolio_data(ft_ss):
         try:
             quote = symbols.SymbolQuote(ft_ss, account_number, symbol)
             current_price = float(quote.last)
-            change_percent = float(quote.change.replace('%', '')) if isinstance(quote.change, str) else float(quote.change)
-            # Calculate market value based on latest price to be consistent
+            
+            # quote.change is the dollar price change, not percentage
+            price_change = float(quote.change) if quote.change else 0.0
+            
+            # Calculate market value based on latest price
             market_value = quantity * current_price
             
-            # Calculate Day Change ($)
-            # Current Value = Previous Value * (1 + Change%)
-            # Previous Value = Current Value / (1 + Change%)
-            # Day Change = Current Value - Previous Value
-            if change_percent == -100:
-                day_change = -market_value
+            # Calculate day change in dollars for the position
+            day_change = quantity * price_change
+            
+            # Calculate percentage change
+            if current_price > 0:
+                previous_price = current_price - price_change
+                change_percent = (price_change / previous_price * 100) if previous_price != 0 else 0.0
             else:
-                previous_value = market_value / (1 + change_percent / 100)
-                day_change = market_value - previous_value
+                change_percent = 0.0
 
             # Format Label
             # Symbol (Bold)
@@ -79,7 +89,7 @@ def fetch_portfolio_data(ft_ss):
                 "Price": current_price,
                 "Label": label
             })
-            print(f"Processed {symbol}: Value=${market_value:.2f}, Change={change_percent}%, DayChange=${day_change:.2f}")
+            print(f"Processed {symbol}: Value=${market_value:.2f}, Change={change_percent:.2f}%, DayChange=${day_change:.2f}")
         except Exception as e:
             print(f"Failed to fetch data for {symbol}: {e}")
     
