@@ -40,6 +40,7 @@ A Python tool that visualizes your Firstrade investment portfolio as a Market Ma
       FT_USERNAME=your_username
       FT_PASSWORD=your_password
       FT_EMAIL=your_email
+      FT_MFA_SECRET=your_mfa_secret_optional  # Only needed if you use TOTP-based MFA
       ```
 
 ## Usage
