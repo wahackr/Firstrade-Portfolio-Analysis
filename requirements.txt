@@ -1,0 +1,7 @@
+firstrade==0.0.34
+plotly==6.5.0
+pandas==2.3.3
+python-dotenv==1.2.1
+pyotp==2.9.0
+numpy==2.3.5
+kaleido==1.2.0
